@@ -1,0 +1,21 @@
+<ArrayJob>
+    <Control Script="control.py"/>
+    <Provide Script="provide.py"/>
+    <Execute Script="execute.sh"/>
+    <Batch>
+        <Cookies Format="#SBATCH --{}={}" MpiProcessTag="ntasks">
+            <Cookie Tag="job-name" Value="md_%J"/>
+            <Cookie Tag="output" Value="md_%J.log"/>
+            <Cookie Tag="time" Value="24:00:00"/>
+            <Cookie Tag="account" Value="jara0035"/>
+            <Cookie Tag="mem-per-cpu" Value="3800"/>
+            <!--  Number of MPI processes  -->
+            <Cookie Tag="ntasks" Value="1"/>	
+            <!--  Number of CPU-cores per MPI Process-->
+            <Cookie Tag="cpus-per-task" Value="1"/>
+        </Cookies>
+        <Commands>
+            <Command Value="module load python3"/>
+        </Commands>
+    </Batch>
+</ArrayJob>
