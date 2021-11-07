@@ -10,7 +10,7 @@
             <Cookie Tag="account" Value="jara0035"/>
             <Cookie Tag="mem-per-cpu" Value="3800"/>
             <!--  Number of MPI processes  -->
-            <Cookie Tag="ntasks" Value="1"/>	
+            <Cookie Tag="ntasks" Value="48"/>	
             <!--  Number of CPU-cores per MPI Process-->
             <Cookie Tag="cpus-per-task" Value="1"/>
         </Cookies>
