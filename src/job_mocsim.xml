@@ -1,25 +1,20 @@
-<!-- 
-    This is an example job configuration template
-    Notes:
-    - Control/Provide scripts must be located in the same folder as the submit.py/arrayjob.py
-    - Control/Provide scripts must be given without directory information
- -->
+<!-- This is the default template for the mocassin simulation system -->
 <ArrayJob>
     <!-- Supported script types: python (.py) -->
     <Control Script="control.py"/>
     <!-- Supported script types: python (.py) -->
-    <Provide Script="provide.py"/>
+    <Provide Script="provide_mocsim.py"/>
     <!-- Supported script types of default control.py: bash (.sh), python (.py), powershell (.ps1) -->
-    <Execute Script="execute.ps1"/>
+    <Execute Script="/home/se260454/mpiarrayjob/src/execute_mocsim.sh"/>
     <Batch>
         <Cookies Format="#SBATCH --{}={}" MpiProcessTag="ntasks">
-            <Cookie Tag="job-name" Value="md_%J"/>
-            <Cookie Tag="output" Value="md_%J.log"/>
-            <Cookie Tag="time" Value="24:00:00"/>
-            <Cookie Tag="account" Value="jara0035"/>
+            <Cookie Tag="job-name" Value="mocsim_%J"/>
+            <Cookie Tag="output" Value="mocsim_%J.log"/>
+            <Cookie Tag="time" Value="00:15:00"/>
+            <!-- <Cookie Tag="account" Value="jara0156"/> -->
             <Cookie Tag="mem-per-cpu" Value="3800"/>
             <!--  Number of MPI processes  -->
-            <Cookie Tag="ntasks" Value="48"/>	
+            <Cookie Tag="ntasks" Value="12"/>	
             <!--  Number of CPU-cores per MPI Process-->
             <Cookie Tag="cpus-per-task" Value="1"/>
         </Cookies>

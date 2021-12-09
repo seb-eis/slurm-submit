@@ -7,6 +7,9 @@ class ProviderBase:
     Base class for all providers that convert a set of submit arguments into a List[List[str]] that describe the execution args for all individual jobs
     """
 
+    def __init__(self, is_silent: bool) -> None:
+        self.is_silent = is_silent
+
     @abstractmethod
     def get_all_execution_args(self, control_args: List[str]) -> List[List[str]]:
         """
@@ -40,13 +43,13 @@ class ProviderBase:
         total_job_count = len(execution_paths)
         min_id = package_id * max_mpi_size
         max_id = min((package_id + 1) * max_mpi_size, total_job_count)
-        
+
         if max_id == min_id:
             raise Exception("The minimal job id is equal to the maximum job id")
 
         execution_args_part = execution_args[min_id:max_id]
         for i, path in zip(range(0, len(execution_paths)), execution_paths[min_id:max_id]):
-            execution_args_part[i].insert(i, path)
+            execution_args_part[i].insert(0, path)
 
         return execution_args_part
 
@@ -68,6 +71,9 @@ class Provider(ProviderBase):
     A test provider that supplies a certain number of test arguments
     """
     
+    def __init__(self, is_silent: bool) -> None:
+        super().__init__(is_silent)
+
     def get_all_execution_args(self, control_args: List[str]) -> List[List[str]]:
         return [control_args.copy() for _ in self.get_range()]
 

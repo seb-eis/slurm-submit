@@ -2,7 +2,6 @@ from typing import Iterable, List, Tuple, Union
 import xml.etree.ElementTree as xml
 import os
 import uuid
-import re
 
 from provide import ProviderBase
 
@@ -23,12 +22,12 @@ class JobScript:
 
     @classmethod
     def sub_template_var(cls, template: str, var_name: str, data: Union[List[str],str], data_sep: str = "\n") -> str:
-        replacement = data if isinstance(data, str) else data_sep.join([str(x) for x in data])
-        return re.sub(f"__{var_name}__", replacement, template)
+        replacement = data if isinstance(data, str) else data_sep.join([x for x in data])
+        return template.replace(f"__{var_name}__", replacement)
 
     @classmethod
     def get_raw_script_template(cls) -> str:
-        return "#!/usr/bin/env zsh\n\n__COOKIES__\n\n__COMMANDS__\n\n__MPIEXEC____CONTROL__ -provide __PROVIDE__ -execute __EXECUTE__ -package __PACKAGE__ -args __ARGS__"
+        return "#!/usr/bin/env zsh\n\n__COOKIES__\n\n__COMMANDS__\n\n__MPIEXEC__python3 __CONTROL__ -provide __PROVIDE__ -execute __EXECUTE__ -package __PACKAGE__ -packsize __PACKSIZE__ -args __ARGS__"
 
     @classmethod
     def get_mpi_replacement(cls, mpisize: int) -> str:
@@ -38,16 +37,20 @@ class JobScript:
             return ""
 
     @classmethod
-    def generate_content(cls, execute: str, provide: str, control: str, package: int, mpisize: int, cookie_format: str, cookies: List[Tuple[str,str]], commands: List[str], args: List[str]) -> str: 
+    def generate_content(cls, execute: str, provide: str, control: str, package_id: int, mpisize: int, packsize: int, cookie_format: str, cookies: List[Tuple[str,str]], commands: List[str], args: List[str]) -> str: 
         template = cls.get_raw_script_template()
-        template = cls.sub_template_var(template, "CONTROL", control)
         template = cls.sub_template_var(template, "PROVIDE", provide)
         template = cls.sub_template_var(template, "EXECUTE", execute)
         template = cls.sub_template_var(template, "COMMANDS", commands)
-        template = cls.sub_template_var(template, "PACKAGE", str(package))
+        template = cls.sub_template_var(template, "PACKAGE", str(package_id))
+        template = cls.sub_template_var(template, "PACKSIZE", str(packsize))
         template = cls.sub_template_var(template, "MPIEXEC", cls.get_mpi_replacement(mpisize))
         template = cls.sub_template_var(template, "COOKIES", [cookie_format.format(x[0], x[1]) for x in cookies])
         template = cls.sub_template_var(template, "ARGS", args, " ")
+
+        # Note: This gives the batch submit system the absolute path to the control script
+        template = cls.sub_template_var(template, "CONTROL", os.path.abspath(f"{os.path.dirname(__file__)}/{control}"))
+        
         return template
 
 class ArrayJob:
@@ -76,9 +79,6 @@ class ArrayJob:
         script_path = node.get("Script")
         if script_path is None:
             raise Exception(f"The '{element_name}' script node does not define a 'Script' argument")
-
-        if not os.path.exists(script_path):
-            raise Exception(f"The '{element_name}' script '{script_path}' does not exists")
 
         return script_path
 
@@ -132,7 +132,7 @@ class ArrayJob:
 
         return mpitag
 
-    def _get_mpi_size(self, xml_root: xml.Element) -> int:
+    def _get_mpi_size(self) -> int:
         _, mpival = next(filter(lambda x: x[0] == self.mpi_tag, self.batch_cookies), (self.mpi_tag, "NAN"))
         mpisize = 0
         try: mpisize = int(mpival)
@@ -160,7 +160,7 @@ class ArrayJob:
         self.batch_cookies = self._get_batch_cookies(xml_root)
         self.submit_commands = self._get_submit_commands(xml_root)
         self.mpi_tag = self._get_mpi_tag(xml_root)
-        self.mpi_size = self._get_mpi_size(xml_root)
+        self.mpi_size = self._get_mpi_size()
 
     def _load_template_data(self) -> None:
         xml_tree = xml.parse(self.template_path)
@@ -179,19 +179,20 @@ class ArrayJob:
 
         self.mpi_size = mpi_size
 
-    def generate_script(self, package_id: int, mpi_size: Union[int,None] = None) -> JobScript:
-        if mpi_size is not None and mpi_size < 1:
+    def generate_script(self, package_id: int, mpi_size_overwrite: Union[int,None] = None) -> JobScript:
+        if mpi_size_overwrite is not None and mpi_size_overwrite < 1:
             raise Exception("MPI size override cannot be smaller than 1")
 
         mpi_size_old = self.mpi_size
-        self.overwrite_mpi_size(self.mpi_size if mpi_size is None else mpi_size)
+        self.overwrite_mpi_size(self.mpi_size if mpi_size_overwrite is None else mpi_size_overwrite)
 
         script_content = JobScript.generate_content(
             execute=self.execute_script,
             provide=self.provide_script,
             control=self.control_script,
-            package=package_id,
+            package_id=package_id,
             mpisize=self.mpi_size,
+            packsize=mpi_size_old,
             cookie_format=self.cookie_format,
             cookies=self.batch_cookies,
             commands=self.submit_commands,
@@ -206,11 +207,11 @@ class ArrayJob:
         package_id = 0
         while count > 0:
             mpi_size = provider.get_mpi_size_by_package_id(self.submit_args, self.mpi_size, package_id)
+            yield self.generate_script(package_id, mpi_size)
             package_id += 1
             count -= mpi_size
-            yield self.generate_script(package_id, mpi_size)
 
     def generate_provider(self, cls_name = "Provider") -> ProviderBase: 
-        root, ext = os.path.splitext(os.path.expandvars(self.provide_script))
+        root, _ = os.path.splitext(os.path.expandvars(self.provide_script))
         module = __import__(root)
-        return getattr(module, "Provider")()
+        return getattr(module, cls_name)(False)
