@@ -5,7 +5,7 @@
     <!-- Supported script types: python (.py) -->
     <Provide Script="provide_mocsim.py"/>
     <!-- Supported script types of default control.py: bash (.sh), python (.py), powershell (.ps1) -->
-    <Execute Script="/home/se260454/mpiarrayjob/src/execute_mocsim.sh"/>
+    <Execute Script="<directory>/execute_mocsim.sh"/>
     <Batch>
         <Cookies Format="#SBATCH --{}={}" MpiProcessTag="ntasks">
             <Cookie Tag="job-name" Value="mocsim_%J"/>
