@@ -11,6 +11,12 @@ def get_mpi_rank() -> int:
     except:
         return 0
 
+def get_mpi_size() -> int:
+    try:
+        return MPI.COMM_WORLD.Get_size()
+    except:
+        return 1
+
 def get_control_arg_index(name: str) -> int:
     return sys.argv.index(f"-{name}")
 
@@ -58,12 +64,13 @@ def run_as_subprocess() -> None:
     exe_path = get_control_arg_value("execute")
     interpreter = get_script_interpreter(exe_path)
     mpi_rank = get_mpi_rank()
+    mpi_size = get_mpi_size()
 
     # The popen args has the execution path at index 0
     popen_args = get_popen_args(mpi_rank)
     popen_args.insert(0, exe_path)
     popen_args.insert(0, interpreter)
-    mpi_info = f"MPI [{(mpi_rank + 1):02d}/ {MPI.COMM_WORLD.Get_size():02d}]"
+    mpi_info = f"MPI [{(mpi_rank + 1):03d}/ {mpi_size:03d}]"
     print(f"{mpi_info} Executing : {popen_args}", flush=True)
     result = subprocess.run(popen_args)
     print(f"{mpi_info} Returncode: {result.returncode}", flush=True)
